@@ -1,5 +1,11 @@
 # Defaults
 
+## Host Support
+
+- Current implemented and validated host OS: Windows 11
+- Ubuntu and other Linux host implementations are not yet documented in this skill
+- Extend this skill after those host environments are actually implemented and verified
+
 ## Ports
 
 - App: `8080`

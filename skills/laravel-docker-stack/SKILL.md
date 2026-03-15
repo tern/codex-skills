@@ -7,6 +7,12 @@ description: Build a Docker-based local Laravel development environment in the c
 
 Create a Docker Compose stack in the current folder instead of modifying the host machine directly.
 
+This version is currently implemented and validated on Windows 11 only.
+
+Do not assume the workflow is already verified on Ubuntu or other Linux distributions.
+
+If future work adds Ubuntu or other Linux package and host-environment support, expand this skill then.
+
 Prefer this layout:
 
 - `docker-compose.yml`
