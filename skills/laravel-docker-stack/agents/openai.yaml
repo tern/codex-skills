@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laravel Docker Stack"
+  short_description: "Build Laravel, Breeze, MySQL, phpMyAdmin in Docker"
+  default_prompt: "Use $laravel-docker-stack to create a Laravel Docker environment in this folder, including Breeze, phpMyAdmin, SQL init support, and custom ports if needed."
