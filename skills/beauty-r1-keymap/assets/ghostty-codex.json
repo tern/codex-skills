@@ -1,0 +1,97 @@
+{
+    "title": "Beauty-R1 Codex CLI controls",
+    "rules": [
+        {
+            "description": "Beauty-R1: control Codex CLI in Ghostty",
+            "manipulators": [
+                {
+                    "type": "basic",
+                    "from": {
+                        "consumer_key_code": "volume_increment"
+                    },
+                    "to": [
+                        {
+                            "key_code": "up_arrow"
+                        }
+                    ],
+                    "conditions": [
+                        {
+                            "type": "device_if",
+                            "identifiers": [
+                                {
+                                    "vendor_id": 1452,
+                                    "product_id": 556,
+                                    "is_pointing_device": true
+                                }
+                            ]
+                        },
+                        {
+                            "type": "frontmost_application_if",
+                            "bundle_identifiers": [
+                                "^com\\.mitchellh\\.ghostty$"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "consumer_key_code": "volume_decrement"
+                    },
+                    "to": [
+                        {
+                            "key_code": "down_arrow"
+                        }
+                    ],
+                    "conditions": [
+                        {
+                            "type": "device_if",
+                            "identifiers": [
+                                {
+                                    "vendor_id": 1452,
+                                    "product_id": 556,
+                                    "is_pointing_device": true
+                                }
+                            ]
+                        },
+                        {
+                            "type": "frontmost_application_if",
+                            "bundle_identifiers": [
+                                "^com\\.mitchellh\\.ghostty$"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "pointing_button": "button1"
+                    },
+                    "to": [
+                        {
+                            "key_code": "return_or_enter"
+                        }
+                    ],
+                    "conditions": [
+                        {
+                            "type": "device_if",
+                            "identifiers": [
+                                {
+                                    "vendor_id": 1452,
+                                    "product_id": 556,
+                                    "is_pointing_device": true
+                                }
+                            ]
+                        },
+                        {
+                            "type": "frontmost_application_if",
+                            "bundle_identifiers": [
+                                "^com\\.mitchellh\\.ghostty$"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
