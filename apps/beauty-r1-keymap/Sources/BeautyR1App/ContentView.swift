@@ -157,7 +157,9 @@ struct ContentView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     Text(remoteMonitor.usesSystemEvents
-                         ? "Karabiner 接管裝置時，此處監聽系統事件。其他滑鼠的左鍵也可能被計入；不會修改 Karabiner 設定。"
+                         ? "此處監聽系統事件。其他滑鼠的左鍵也可能被計入；不會修改 Karabiner 設定。"
+                         : remoteMonitor.usesVirtualDevice
+                         ? "此處監聽 Karabiner 的虛擬裝置；其他經此裝置輸出的按鍵也可能被計入。"
                          : "這裡讀取 Beauty-R1 的原始事件，不會修改 Karabiner 設定。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
