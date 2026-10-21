@@ -1,26 +1,26 @@
-# Beauty-R1 → Ghostty / Codex CLI
+# Beauty-R1 控制 Ghostty 中的 Codex CLI
 
-This Codex skill records a working macOS mapping for a Beauty-R1 (DY10) Bluetooth remote. It also describes how to measure the remote's events and change the mapping later.
+這份 Codex skill 保存 Beauty-R1（DY10）在 macOS 上的已驗證按鍵設定，也記錄日後重新測量與修改按鍵的方法。
 
-## Working controls
+## 目前功能
 
-| Remote action | Ghostty action |
+| 遙控器操作 | Ghostty 功能 |
 | --- | --- |
-| Long press up | Up arrow |
-| Long press down | Down arrow |
-| Short press center heart | Enter |
+| 長按上鍵 | 向上選擇 |
+| 長按下鍵 | 向下選擇 |
+| 短按中央愛心 | Enter |
 
-Karabiner-EventViewer showed that short presses of **up, down, left, right, and center heart all send the same `button1` event**. Therefore, all five short presses produce Enter while Ghostty is focused. They cannot be assigned five distinct actions through this rule. Long up/down send separate volume events and may repeat while held.
+EventViewer 顯示：上、下、左、右與中央愛心的短按都送出 `button1`。因此 Ghostty 中的這五種短按都會觸發 Enter，無法單獨設定中央愛心。長按上、下鍵則分別送出音量增加、減少事件，而且按住時可能重複送出。
 
-The rule applies only to a pointing device with vendor ID `1452` and product ID `556`, and only while Ghostty (`com.mitchellh.ghostty`) is frontmost. It does not contain the remote's serial number.
+規則只套用到 vendor ID `1452`、product ID `556` 的指標裝置，並且只在 Ghostty（`com.mitchellh.ghostty`）位於前景時生效。公開檔案不含遙控器序號。
 
-## Install or revise
+## 安裝與修改
 
-1. Install Karabiner-Elements and grant the permissions required by its Setup page.
-2. Connect Beauty-R1. In **Karabiner-Elements → Devices**, enable **Modify events** for this remote.
-3. Copy [`assets/ghostty-codex.json`](assets/ghostty-codex.json) into `~/.config/karabiner/assets/complex_modifications/`. In **Complex Modifications → Add predefined rule**, enable its rule. Confirm the device identifiers with Karabiner-EventViewer before using the rule on another remote. On a Mac where this rule is already enabled, edit the existing rule instead of adding a duplicate.
-4. Test in a new Ghostty tab with `/bin/cat -v`. The arrows should show `^[[A` and `^[[B`. Type `TEST`, then short press the center heart; Enter makes `TEST` appear again on a new line. Press Control-C to exit.
+1. 安裝 Karabiner-Elements。完成其 Setup 頁要求的權限設定。
+2. 連接 Beauty-R1。在 **Karabiner-Elements → Devices** 為該裝置開啟 **Modify events**。
+3. 將 [`assets/ghostty-codex.json`](assets/ghostty-codex.json) 複製到 `~/.config/karabiner/assets/complex_modifications/`。在 **Complex Modifications → Add predefined rule** 啟用規則。如果這台 Mac 已有該規則，請修改現有規則，避免重複新增。
+4. 在新的 Ghostty 分頁執行 `/bin/cat -v`。長按上、下鍵應顯示 `^[[A`、`^[[B`。輸入 `TEST` 後短按中央愛心；若 Enter 生效，`TEST` 會換行重現。按 Control-C 結束測試。
 
-To change the target keys, edit the `to` entries in the JSON rule, lint it with `karabiner_cli --lint-complex-modifications`, then replace the enabled rule. The [skill instructions](SKILL.md) cover event capture, safe editing, and rollback.
+若要改變功能，請修改 JSON 規則的 `to` 欄位。先執行 `karabiner_cli --lint-complex-modifications`，再更新已啟用的規則。[SKILL.md](SKILL.md) 包含事件測量、安全修改與還原流程。
 
-The mapping was verified on macOS with Karabiner-Elements 16.3.0 and Ghostty. Other firmware or device revisions should be measured again before applying it.
+本次設定已在 Karabiner-Elements 16.3.0 與 Ghostty 實測。其他韌體或裝置版本應重新測量。
