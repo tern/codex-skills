@@ -25,6 +25,7 @@ cat > "$app_dir/Contents/Info.plist" <<'PLIST'
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
     <key>NSHighResolutionCapable</key><true/>
+    <key>NSInputMonitoringUsageDescription</key><string>讀取 Beauty-R1 遙控器的按鍵事件，顯示在按鍵測試區。</string>
 </dict>
 </plist>
 PLIST
