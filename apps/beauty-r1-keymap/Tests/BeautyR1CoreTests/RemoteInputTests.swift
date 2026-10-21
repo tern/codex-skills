@@ -20,4 +20,12 @@ final class RemoteInputTests: XCTestCase {
         XCTAssertEqual(RemoteInput.longDown.mapping(in: settings).preset, .pageDown)
         XCTAssertEqual(RemoteInput.shortPress.mapping(in: settings).preset, .yesAndEnter)
     }
+
+    func testSystemEventFallbackRecognizesPresses() {
+        XCTAssertEqual(RemoteInput(systemEventType: 1), .shortPress)
+        XCTAssertEqual(RemoteInput(systemEventType: 14, data1: 0x00000A00), .longUp)
+        XCTAssertEqual(RemoteInput(systemEventType: 14, data1: 0x00010A00), .longDown)
+        XCTAssertNil(RemoteInput(systemEventType: 14, data1: 0x00010B00))
+        XCTAssertNil(RemoteInput(systemEventType: 14, data1: 0x00020A00))
+    }
 }
