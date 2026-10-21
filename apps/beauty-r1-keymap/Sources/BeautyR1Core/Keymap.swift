@@ -109,8 +109,8 @@ public enum TargetApps: String, Codable, CaseIterable, Identifiable {
     public var bundleIDs: [String] {
         switch self {
         case .ghostty: ["com.mitchellh.ghostty"]
-        case .codexDesktop: ["com.openai.codex"]
-        case .both: ["com.mitchellh.ghostty", "com.openai.codex"]
+        case .codexDesktop: ["com.openai.codex", "com.openai.chat"]
+        case .both: ["com.mitchellh.ghostty", "com.openai.codex", "com.openai.chat"]
         case .custom: []
         }
     }
@@ -254,9 +254,9 @@ public enum KarabinerKeymap {
                     guard pattern.hasPrefix("^"), pattern.hasSuffix("$") else { return nil }
                     return String(pattern.dropFirst().dropLast()).replacingOccurrences(of: "\\.", with: ".")
                 }
-                if bundles == TargetApps.both.bundleIDs {
+                if bundles == TargetApps.both.bundleIDs || bundles == ["com.mitchellh.ghostty", "com.openai.codex"] {
                     settings.targetApps = .both
-                } else if bundles == TargetApps.codexDesktop.bundleIDs {
+                } else if bundles == TargetApps.codexDesktop.bundleIDs || bundles == ["com.openai.codex"] || bundles == ["com.openai.chat"] {
                     settings.targetApps = .codexDesktop
                 } else if bundles == TargetApps.ghostty.bundleIDs {
                     settings.targetApps = .ghostty
