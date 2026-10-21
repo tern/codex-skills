@@ -67,6 +67,7 @@ private struct MappingRow: View {
 }
 
 struct ContentView: View {
+    @StateObject private var remoteMonitor = RemoteMonitor()
     @State private var settings = KeymapSettings()
     @State private var status = "正在讀取 Karabiner 設定…"
     @State private var errorMessage: String?
@@ -128,6 +129,39 @@ struct ContentView: View {
 
                 Label("這五個短按無法分別指定功能；介面會一起修改。", systemImage: "info.circle")
                     .font(.callout)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("實體按鍵測試").font(.headline)
+                        Spacer()
+                        Button(remoteMonitor.isRunning ? "停止測試" : "開始測試") {
+                            if remoteMonitor.isRunning {
+                                remoteMonitor.stop()
+                            } else {
+                                remoteMonitor.start()
+                            }
+                        }
+                    }
+                    Text(remoteMonitor.status)
+                        .font(.caption).foregroundStyle(.secondary)
+                    if remoteMonitor.needsInputMonitoring {
+                        Link("開啟輸入監控設定", destination: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)
+                            .font(.caption)
+                    }
+                    if let input = remoteMonitor.lastInput {
+                        Text("收到：\(input.title)")
+                            .font(.body.weight(.medium))
+                        Text("目前選擇：\(input.mapping(in: settings).preset.title)（預覽；套用設定後生效）")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Text("累計收到 \(remoteMonitor.eventCount) 次事件。長按可能重複計數。")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Text("這裡讀取 Beauty-R1 的原始事件，不會修改 Karabiner 設定。")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
                     .foregroundStyle(.secondary)
 
                 Divider()
@@ -151,6 +185,7 @@ struct ContentView: View {
         .frame(width: 780)
         .frame(minHeight: 710)
         .onAppear(perform: reload)
+        .onDisappear { remoteMonitor.stop() }
         .alert("設定失敗", isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
