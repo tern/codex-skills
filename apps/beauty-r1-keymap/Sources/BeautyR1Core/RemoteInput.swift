@@ -13,6 +13,19 @@ public enum RemoteInput: String, Equatable {
         }
     }
 
+    public init?(systemEventType: UInt32, data1: Int = 0) {
+        if systemEventType == 1 {
+            self = .shortPress
+            return
+        }
+        guard systemEventType == 14, ((data1 >> 8) & 0xFF) == 0xA else { return nil }
+        switch (data1 >> 16) & 0xFFFF {
+        case 0: self = .longUp
+        case 1: self = .longDown
+        default: return nil
+        }
+    }
+
     public var title: String {
         switch self {
         case .longUp: "音量增加事件（上鍵長按）"
