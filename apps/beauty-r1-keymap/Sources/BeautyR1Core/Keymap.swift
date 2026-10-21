@@ -98,7 +98,26 @@ public struct ActionMapping: Codable, Equatable {
     }
 }
 
+public enum TargetApps: String, Codable, CaseIterable, Identifiable {
+    case ghostty
+    case codexDesktop
+    case both
+    case custom
+
+    public var id: String { rawValue }
+
+    public var bundleIDs: [String] {
+        switch self {
+        case .ghostty: ["com.mitchellh.ghostty"]
+        case .codexDesktop: ["com.openai.codex"]
+        case .both: ["com.mitchellh.ghostty", "com.openai.codex"]
+        case .custom: []
+        }
+    }
+}
+
 public struct KeymapSettings: Codable, Equatable {
+    public var targetApps: TargetApps
     public var bundleID: String
     public var longUp: ActionMapping
     public var longDown: ActionMapping
@@ -106,11 +125,13 @@ public struct KeymapSettings: Codable, Equatable {
 
     public init(
         bundleID: String = "com.mitchellh.ghostty",
+        targetApps: TargetApps = .ghostty,
         longUp: ActionMapping = ActionMapping(.upArrow),
         longDown: ActionMapping = ActionMapping(.downArrow),
         shortPress: ActionMapping = ActionMapping(.enter)
     ) {
         self.bundleID = bundleID
+        self.targetApps = targetApps
         self.longUp = longUp
         self.longDown = longDown
         self.shortPress = shortPress
@@ -128,14 +149,16 @@ public enum KarabinerKeymap {
     ] }
 
     public static func rule(for settings: KeymapSettings) throws -> [String: Any]? {
-        let bundle = settings.bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard bundle.range(of: "^[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+$", options: .regularExpression) != nil else {
+        let bundles = settings.targetApps == .custom
+            ? [settings.bundleID.trimmingCharacters(in: .whitespacesAndNewlines)]
+            : settings.targetApps.bundleIDs
+        guard bundles.allSatisfy({ $0.range(of: "^[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+$", options: .regularExpression) != nil }) else {
             throw KeymapError.invalidBundleID
         }
 
         let conditions: [[String: Any]] = [
             ["type": "device_if", "identifiers": [device]],
-            ["type": "frontmost_application_if", "bundle_identifiers": ["^\(NSRegularExpression.escapedPattern(for: bundle))$"]]
+            ["type": "frontmost_application_if", "bundle_identifiers": bundles.map { "^\(NSRegularExpression.escapedPattern(for: $0))$" }]
         ]
         let sources: [([String: Any], ActionMapping)] = [
             (["consumer_key_code": "volume_increment"], settings.longUp),
@@ -226,10 +249,21 @@ public enum KarabinerKeymap {
 
             if let conditions = manipulator["conditions"] as? [[String: Any]],
                let app = conditions.first(where: { $0["type"] as? String == "frontmost_application_if" }),
-               let patterns = app["bundle_identifiers"] as? [String],
-               let pattern = patterns.first,
-               pattern.hasPrefix("^"), pattern.hasSuffix("$") {
-                settings.bundleID = String(pattern.dropFirst().dropLast()).replacingOccurrences(of: "\\.", with: ".")
+               let patterns = app["bundle_identifiers"] as? [String] {
+                let bundles = patterns.compactMap { pattern -> String? in
+                    guard pattern.hasPrefix("^"), pattern.hasSuffix("$") else { return nil }
+                    return String(pattern.dropFirst().dropLast()).replacingOccurrences(of: "\\.", with: ".")
+                }
+                if bundles == TargetApps.both.bundleIDs {
+                    settings.targetApps = .both
+                } else if bundles == TargetApps.codexDesktop.bundleIDs {
+                    settings.targetApps = .codexDesktop
+                } else if bundles == TargetApps.ghostty.bundleIDs {
+                    settings.targetApps = .ghostty
+                } else if let bundle = bundles.first {
+                    settings.targetApps = .custom
+                    settings.bundleID = bundle
+                }
             }
         }
         return settings
