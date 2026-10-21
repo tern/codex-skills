@@ -92,7 +92,7 @@ struct ContentView: View {
                     Text("套用範圍").font(.headline)
                     Picker("前景 App", selection: $settings.targetApps) {
                         Text("Ghostty").tag(TargetApps.ghostty)
-                        Text("Codex Desktop").tag(TargetApps.codexDesktop)
+                        Text("ChatGPT / Codex").tag(TargetApps.codexDesktop)
                         Text("兩者").tag(TargetApps.both)
                         Text("自訂 App").tag(TargetApps.custom)
                     }
@@ -101,7 +101,7 @@ struct ContentView: View {
                         TextField("App bundle ID，例如 com.example.app", text: $settings.bundleID)
                             .textFieldStyle(.roundedBorder)
                     }
-                    Text("只在所選 App 位於前景時生效；選「兩者」時，Ghostty 和 Codex Desktop 使用相同按鍵設定。")
+                    Text("只在所選 App 位於前景時生效；選「兩者」時，Ghostty 與 ChatGPT／Codex Desktop 使用相同按鍵設定。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 .padding(16)
