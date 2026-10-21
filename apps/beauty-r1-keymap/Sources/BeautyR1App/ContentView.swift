@@ -66,6 +66,49 @@ private struct MappingRow: View {
     }
 }
 
+private struct RemoteTestKey: View {
+    let symbol: String
+    let name: String
+    let highlighted: Bool
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 19, weight: .bold))
+            .foregroundStyle(highlighted ? Color.black : Color.white.opacity(0.85))
+            .frame(width: 54, height: 54)
+            .background(highlighted ? Color.cyan : Color.white.opacity(0.12), in: Circle())
+            .overlay(Circle().strokeBorder(highlighted ? Color.white : Color.white.opacity(0.15), lineWidth: highlighted ? 2 : 1))
+            .shadow(color: highlighted ? Color.cyan.opacity(0.8) : .clear, radius: highlighted ? 14 : 0)
+            .accessibilityLabel("\(name)\(highlighted ? "，亮起" : "")")
+    }
+}
+
+private struct RemoteTestDiagram: View {
+    let input: RemoteInput?
+
+    private var allShortPressKeys: Bool { input == .shortPress }
+
+    var body: some View {
+        VStack(spacing: 7) {
+            RemoteTestKey(symbol: "arrowtriangle.up.fill", name: "上鍵", highlighted: input == .longUp || allShortPressKeys)
+            HStack(spacing: 7) {
+                RemoteTestKey(symbol: "arrowtriangle.left.fill", name: "左鍵", highlighted: allShortPressKeys)
+                RemoteTestKey(symbol: "heart.fill", name: "愛心鍵", highlighted: allShortPressKeys)
+                RemoteTestKey(symbol: "arrowtriangle.right.fill", name: "右鍵", highlighted: allShortPressKeys)
+            }
+            RemoteTestKey(symbol: "arrowtriangle.down.fill", name: "下鍵", highlighted: input == .longDown || allShortPressKeys)
+            Text(input == .shortPress ? "五鍵共用短按事件" : "長按上／下鍵可分別辨識")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(input == nil ? Color.white.opacity(0.65) : Color.cyan)
+                .padding(.top, 5)
+        }
+        .frame(width: 218, height: 236)
+        .background(Color(red: 0.12, green: 0.14, blue: 0.18), in: RoundedRectangle(cornerRadius: 30))
+        .overlay(RoundedRectangle(cornerRadius: 30).strokeBorder(Color.white.opacity(0.16), lineWidth: 1))
+        .animation(.easeOut(duration: 0.2), value: input)
+    }
+}
+
 struct ContentView: View {
     @StateObject private var remoteMonitor = RemoteMonitor()
     @State private var settings = KeymapSettings()
@@ -148,13 +191,29 @@ struct ContentView: View {
                         Link("開啟輸入監控設定", destination: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)
                             .font(.caption)
                     }
-                    if let input = remoteMonitor.lastInput {
-                        Text("收到：\(input.title)")
-                            .font(.body.weight(.medium))
-                        Text("目前選擇：\(input.mapping(in: settings).preset.title)（預覽；套用設定後生效）")
-                            .font(.caption).foregroundStyle(.secondary)
-                        Text("累計收到 \(remoteMonitor.eventCount) 次事件。長按可能重複計數。")
-                            .font(.caption).foregroundStyle(.secondary)
+                    HStack(alignment: .center, spacing: 18) {
+                        RemoteTestDiagram(input: remoteMonitor.isRunning ? remoteMonitor.lastInput : nil)
+                        VStack(alignment: .leading, spacing: 9) {
+                            if let input = remoteMonitor.lastInput, remoteMonitor.isRunning {
+                                Label("收到：\(input.title)", systemImage: "checkmark.circle.fill")
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(.cyan)
+                                Text("目前選擇：\(input.mapping(in: settings).preset.title)")
+                                    .font(.callout)
+                                Text("此處顯示功能預覽；套用設定後才會生效。")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            } else {
+                                Text("按鍵後，對應圖示會亮起。")
+                                    .font(.callout.weight(.medium))
+                                Text("短按無法區分是哪一鍵，因此五個圖示會一起亮起。")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Text("已收到 \(remoteMonitor.eventCount) 次事件")
+                                .font(.caption.monospacedDigit())
+                            Text("長按可能重複計數。")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     Text(remoteMonitor.usesSystemEvents
                          ? "此處監聽系統事件。其他滑鼠的左鍵也可能被計入；不會修改 Karabiner 設定。"
