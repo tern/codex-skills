@@ -17,6 +17,8 @@
 3. 選擇每組操作的功能。按「套用設定」。
 4. 如選 Ghostty，在新的 Ghostty 分頁執行 `/bin/cat -v`，確認方向鍵或 Enter 的輸出。按 Control-C 結束測試。
 
+介面內的「實體按鍵測試」可直接顯示 Beauty-R1 送出的原始事件，以及目前選擇的按鍵功能。這是套用前的預覽，不會修改 Karabiner 設定。開始測試後，按遙控器的實體按鍵即可看到結果。長按可能連續送出事件，因此計數可能增加多次。如果 macOS 要求輸入監控權限，請在系統設定允許「Beauty-R1 按鍵設定」，重新啟動 App，再開始測試。
+
 套用前，程式會使用 Karabiner CLI 檢查規則，並將完整設定檔備份到 `~/Library/Application Support/BeautyR1Keymap/Backups/`。介面的「還原上次備份」可回復最近一次套用前的設定。程式只修改目前 profile 中的 Beauty-R1 規則與該裝置的 `Modify events` 選項。
 
 ## 從原始碼建置
