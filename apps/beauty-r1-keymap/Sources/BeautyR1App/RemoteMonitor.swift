@@ -9,6 +9,7 @@ final class RemoteMonitor: ObservableObject {
     @Published private(set) var isConnected = false
     @Published private(set) var needsInputMonitoring = false
     @Published private(set) var usesSystemEvents = false
+    @Published private(set) var usesVirtualDevice = false
     @Published private(set) var status = "按「開始測試」後，按 Beauty-R1 的實體按鍵。"
     @Published private(set) var lastInput: RemoteInput?
     @Published private(set) var eventCount = 0
@@ -21,6 +22,7 @@ final class RemoteMonitor: ObservableObject {
         guard manager == nil else { return }
         needsInputMonitoring = false
         usesSystemEvents = false
+        usesVirtualDevice = false
         lastInput = nil
         eventCount = 0
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
@@ -47,7 +49,7 @@ final class RemoteMonitor: ObservableObject {
         guard result == kIOReturnSuccess else {
             IOHIDManagerUnscheduleFromRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
             if result == kIOReturnExclusiveAccess {
-                startSystemEvents()
+                if !startVirtualDevices() { startSystemEvents() }
                 return
             }
             needsInputMonitoring = result == kIOReturnNotPermitted
@@ -80,7 +82,34 @@ final class RemoteMonitor: ObservableObject {
         isConnected = false
         needsInputMonitoring = false
         usesSystemEvents = false
+        usesVirtualDevice = false
         status = "測試已停止。"
+    }
+
+    private func startVirtualDevices() -> Bool {
+        let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
+        let vendor = kIOHIDVendorIDKey as String
+        let product = kIOHIDProductIDKey as String
+        let devices: [[String: Int]] = [
+            [vendor: 0x05AC, product: 0x024F], // Karabiner virtual keyboard
+            [vendor: 0x16C0, product: 0x27DA]  // Karabiner virtual pointing device
+        ]
+        IOHIDManagerSetDeviceMatchingMultiple(manager, devices as CFArray)
+        let context = Unmanaged.passUnretained(self).toOpaque()
+        IOHIDManagerRegisterInputValueCallback(manager, { context, _, _, value in
+            guard let context else { return }
+            Unmanaged<RemoteMonitor>.fromOpaque(context).takeUnretainedValue().receive(value)
+        }, context)
+        IOHIDManagerScheduleWithRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
+        guard IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone)) == kIOReturnSuccess else {
+            IOHIDManagerUnscheduleFromRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
+            return false
+        }
+        self.manager = manager
+        isRunning = true
+        usesVirtualDevice = true
+        status = "Karabiner 正在接管 Beauty-R1。現在監聽它的虛擬鍵盤與滑鼠輸出。"
+        return true
     }
 
     private func startSystemEvents() {
@@ -153,7 +182,7 @@ final class RemoteMonitor: ObservableObject {
         ) else { return }
         lastInput = input
         eventCount += 1
-        status = "已收到按鍵事件。"
+        status = usesVirtualDevice ? "已收到 Karabiner 虛擬裝置的事件。" : "已收到按鍵事件。"
     }
 
     deinit {
