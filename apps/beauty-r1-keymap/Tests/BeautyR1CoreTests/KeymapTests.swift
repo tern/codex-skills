@@ -62,7 +62,29 @@ final class KeymapTests: XCTestCase {
     }
 
     func testInvalidBundleIDDoesNotProduceRule() {
-        let settings = KeymapSettings(bundleID: "Ghostty[bad]")
+        let settings = KeymapSettings(bundleID: "Ghostty[bad]", targetApps: .custom)
         XCTAssertThrowsError(try KarabinerKeymap.rule(for: settings))
+    }
+
+    func testAppTargetsGenerateConditionsAndRoundTrip() throws {
+        for target in [TargetApps.ghostty, .codexDesktop, .both] {
+            let settings = KeymapSettings(targetApps: target)
+            let rule = try XCTUnwrap(KarabinerKeymap.rule(for: settings))
+            let manipulators = try XCTUnwrap(rule["manipulators"] as? [[String: Any]])
+            XCTAssertEqual(manipulators.count, 3)
+            let conditions = try XCTUnwrap(manipulators[0]["conditions"] as? [[String: Any]])
+            let app = try XCTUnwrap(conditions.first { $0["type"] as? String == "frontmost_application_if" })
+            let actual = try XCTUnwrap(app["bundle_identifiers"] as? [String])
+            let expected = target.bundleIDs.map { "^\(NSRegularExpression.escapedPattern(for: $0))$" }
+            XCTAssertEqual(actual, expected)
+            let updated = try KarabinerKeymap.updatedConfiguration(original, settings: settings)
+            XCTAssertEqual(KarabinerKeymap.currentSettings(from: updated), settings)
+        }
+    }
+
+    func testCustomAppRoundTrip() throws {
+        let settings = KeymapSettings(bundleID: "com.example.editor", targetApps: .custom)
+        let updated = try KarabinerKeymap.updatedConfiguration(original, settings: settings)
+        XCTAssertEqual(KarabinerKeymap.currentSettings(from: updated), settings)
     }
 }
