@@ -8,7 +8,7 @@
 
 上、下、左、右與中央愛心的短按無法分別設定，因為這台遙控器送出的事件相同。功能選單包含方向鍵、Enter、Esc、Yes（`y` + Enter）、No（`n` + Enter），以及自訂 Karabiner `key_code` 與修飾鍵。
 
-「套用範圍」可選 Ghostty、Codex Desktop、兩者或自訂 App。選「兩者」時，兩個 App 位於前景時都會使用相同的按鍵設定。其他 App 保留遙控器原本功能。Ghostty 的 bundle ID 是 `com.mitchellh.ghostty`；Codex Desktop 是 `com.openai.codex`。
+「套用範圍」可選 Ghostty、ChatGPT／Codex Desktop、兩者或自訂 App。選「兩者」時，這些 App 位於前景時都會使用相同的按鍵設定。其他 App 保留遙控器原本功能。此 Mac 的 `/Applications/ChatGPT.app` bundle ID 是 `com.openai.codex`；程式也支援 `com.openai.chat`。Ghostty 的 bundle ID 是 `com.mitchellh.ghostty`。
 
 ## 使用
 
