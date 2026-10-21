@@ -156,7 +156,9 @@ struct ContentView: View {
                         Text("累計收到 \(remoteMonitor.eventCount) 次事件。長按可能重複計數。")
                             .font(.caption).foregroundStyle(.secondary)
                     }
-                    Text("這裡讀取 Beauty-R1 的原始事件，不會修改 Karabiner 設定。")
+                    Text(remoteMonitor.usesSystemEvents
+                         ? "Karabiner 接管裝置時，此處監聽系統事件。其他滑鼠的左鍵也可能被計入；不會修改 Karabiner 設定。"
+                         : "這裡讀取 Beauty-R1 的原始事件，不會修改 Karabiner 設定。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 .padding(16)
