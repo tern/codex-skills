@@ -1,35 +1,29 @@
-# Beauty-R1 按鍵設定
+# Beauty-R1 Keymap
 
-這是 macOS 原生介面。你可以選擇 Beauty-R1 三組可辨識操作的功能，再套用到 Karabiner-Elements。
+macOS App，可將 Beauty-R1（DY10）的上、下、左、右、中央愛心五個短按分別對映為鍵盤按鍵。方向鍵位移達到門檻時，介面會立即點亮對應圖示約一秒；愛心鍵在放開時點亮。程式會合併同一鍵的重複訊號。
 
-- 長按上鍵：音量增加事件
-- 長按下鍵：音量減少事件
-- 所有短按：同一個 `button1` 事件
+Beauty-R1 把五個短按都送成滑鼠左鍵；方向鍵還會在按住期間送出不同的滑鼠位移。本 App 在監聽時獨占實體 HID 裝置，利用按下到放開之間的位移辨識五鍵。獨占期間，原始滑鼠點擊和位移不會送到桌面。Karabiner-Elements 若先接管裝置，App 會無法辨識五鍵。使用五鍵模式前，請在 Karabiner-Elements Settings 的「Quit, Restart」退出 Karabiner。
 
-上、下、左、右與中央愛心的短按無法分別設定，因為這台遙控器送出的事件相同。功能選單包含方向鍵、Enter、Esc、Yes（`y` + Enter）、No（`n` + Enter），以及自訂 Karabiner `key_code` 與修飾鍵。
+## 使用五鍵模式
 
-「套用範圍」可選 Ghostty、ChatGPT／Codex Desktop、兩者或自訂 App。選「兩者」時，這些 App 位於前景時都會使用相同的按鍵設定。其他 App 保留遙控器原本功能。此 Mac 的 `/Applications/ChatGPT.app` bundle ID 是 `com.openai.codex`；程式也支援 `com.openai.chat`。Ghostty 的 bundle ID 是 `com.mitchellh.ghostty`。
+1. 執行 `./scripts/build-app.sh`，打開 `dist/Beauty-R1 Keymap.app`。
+2. 在 macOS「隱私權與安全性」授予 App「輸入監控」與「輔助使用」權限。授權後重新啟動 App。
+3. 在「套用範圍」選 Ghostty、ChatGPT／Codex Desktop、兩者或自訂 App。
+4. 在五個對映欄位逐一點擊並按下要使用的鍵盤按鍵。可同時按 Command、Control、Option 或 Shift。設定會自動儲存。
+5. 按「開始測試」。短按遙控器五鍵，確認對應圖示各自亮起。
+6. 按「啟用按鍵對映」。讓 App 保持執行，並切換到目標 App。
 
-## 使用
+「停止按鍵對映」只停止送出模擬鍵盤事件。按「停止測試」會關閉 HID 裝置，恢復遙控器原本的滑鼠事件。若不使用遙控器，建議斷開藍牙連線，避免原始點擊影響桌面。
 
-1. 執行下方建置指令。開啟產生的 `dist/Beauty-R1 Keymap.app`。
-2. 選擇套用範圍。
-3. 選擇每組操作的功能。按「套用設定」。
-4. 如選 Ghostty，在新的 Ghostty 分頁執行 `/bin/cat -v`，確認方向鍵或 Enter 的輸出。按 Control-C 結束測試。
+## 舊版 Karabiner 功能
 
-介面內的「實體按鍵測試」顯示收到的事件，以及目前選擇的按鍵功能。這是套用前的預覽，不會修改 Karabiner 設定。開始測試後，按遙控器的實體按鍵即可看到結果。Karabiner 獨占遙控器時，測試區優先讀取 Karabiner 虛擬鍵盤與滑鼠的輸出；若無法讀取，再改用 macOS 系統事件。其他經虛擬裝置輸出的按鍵，或系統事件模式中的滑鼠左鍵，也可能被計入。長按可能連續送出事件，因此計數可能增加多次。如果 macOS 要求輸入監控權限，請在系統設定允許「Beauty-R1 按鍵設定」，重新啟動 App，再開始測試。重建 App 後，本機臨時簽章可能使 macOS 要求重新授權。
+介面仍保留長按上／下鍵的 Karabiner 設定與「套用設定」按鈕。這些功能只有 Karabiner 執行時生效；Karabiner 接管裝置時，五鍵辨識與獨立對映無法同時使用。
 
-測試區會用遙控器圖示顯示最後收到的事件。長按上鍵或下鍵時，對應箭頭亮起。五個方向／愛心鍵的短按都是同一個 `button1` 事件，因此短按時五個圖示會一起亮起；亮起狀態不能指出實際按的是哪一顆。
-
-套用前，程式會使用 Karabiner CLI 檢查規則，並將完整設定檔備份到 `~/Library/Application Support/BeautyR1Keymap/Backups/`。介面的「還原上次備份」可回復最近一次套用前的設定。程式只修改目前 profile 中的 Beauty-R1 規則與該裝置的 `Modify events` 選項。
-
-## 從原始碼建置
-
-需要 Xcode 與 Karabiner-Elements。執行：
+## 開發
 
 ```sh
 swift test --disable-sandbox
 ./scripts/build-app.sh
 ```
 
-產物位於 `dist/Beauty-R1 Keymap.app`。建置腳本使用本機臨時簽章；這個 App 並未經 Apple 公證。
+建置腳本使用本機臨時簽章。每次重建 App 後，macOS 可能撤銷「輸入監控」或「輔助使用」授權；需移除舊項目，再加入重建後的 App。設定的備份由 App 保存於 `~/Library/Application Support/BeautyR1Keymap/Backups/`。
