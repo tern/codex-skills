@@ -79,38 +79,61 @@ private struct RemoteTestKey: View {
             .background(highlighted ? Color.cyan : Color.white.opacity(0.12), in: Circle())
             .overlay(Circle().strokeBorder(highlighted ? Color.white : Color.white.opacity(0.15), lineWidth: highlighted ? 2 : 1))
             .shadow(color: highlighted ? Color.cyan.opacity(0.8) : .clear, radius: highlighted ? 14 : 0)
+            .scaleEffect(highlighted ? 1.08 : 1)
+            .animation(.easeOut(duration: 0.22), value: highlighted)
             .accessibilityLabel("\(name)\(highlighted ? "，亮起" : "")")
     }
 }
 
 private struct RemoteTestDiagram: View {
-    let input: RemoteInput?
-
-    private var allShortPressKeys: Bool { input == .shortPress }
+    let event: RemoteButtonEvent?
+    @State private var highlightedButton: RemoteButton?
 
     var body: some View {
         VStack(spacing: 7) {
-            RemoteTestKey(symbol: "arrowtriangle.up.fill", name: "上鍵", highlighted: input == .longUp || allShortPressKeys)
+            RemoteTestKey(symbol: "arrowtriangle.up.fill", name: "上鍵", highlighted: highlightedButton == .up)
             HStack(spacing: 7) {
-                RemoteTestKey(symbol: "arrowtriangle.left.fill", name: "左鍵", highlighted: allShortPressKeys)
-                RemoteTestKey(symbol: "heart.fill", name: "愛心鍵", highlighted: allShortPressKeys)
-                RemoteTestKey(symbol: "arrowtriangle.right.fill", name: "右鍵", highlighted: allShortPressKeys)
+                RemoteTestKey(symbol: "arrowtriangle.left.fill", name: "左鍵", highlighted: highlightedButton == .left)
+                RemoteTestKey(symbol: "heart.fill", name: "愛心鍵", highlighted: highlightedButton == .center)
+                RemoteTestKey(symbol: "arrowtriangle.right.fill", name: "右鍵", highlighted: highlightedButton == .right)
             }
-            RemoteTestKey(symbol: "arrowtriangle.down.fill", name: "下鍵", highlighted: input == .longDown || allShortPressKeys)
-            Text(input == .shortPress ? "五鍵共用短按事件" : "長按上／下鍵可分別辨識")
+            RemoteTestKey(symbol: "arrowtriangle.down.fill", name: "下鍵", highlighted: highlightedButton == .down)
+            Text(event.map { "已辨識：\($0.button.title)" } ?? "請短按任一按鍵")
                 .font(.caption2.weight(.medium))
-                .foregroundStyle(input == nil ? Color.white.opacity(0.65) : Color.cyan)
+                .foregroundStyle(event == nil ? Color.white.opacity(0.65) : Color.cyan)
                 .padding(.top, 5)
         }
+        .padding(16)
         .frame(width: 218, height: 236)
         .background(Color(red: 0.12, green: 0.14, blue: 0.18), in: RoundedRectangle(cornerRadius: 30))
         .overlay(RoundedRectangle(cornerRadius: 30).strokeBorder(Color.white.opacity(0.16), lineWidth: 1))
-        .animation(.easeOut(duration: 0.2), value: input)
+        .onChange(of: event) { newEvent in highlightedButton = newEvent?.button }
+        .task(id: event?.sequence) {
+            guard event != nil else { return }
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            highlightedButton = nil
+        }
+    }
+}
+
+private struct ShortcutRow: View {
+    let button: RemoteButton
+    let symbol: String
+    @Binding var shortcut: KeyboardShortcut
+
+    var body: some View {
+        HStack {
+            Label(button.title, systemImage: symbol)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            ShortcutRecorder(shortcut: $shortcut)
+                .frame(width: 150)
+        }
     }
 }
 
 struct ContentView: View {
-    @StateObject private var remoteMonitor = RemoteMonitor()
+    @ObservedObject var remoteMonitor: RemoteMonitor
     @State private var settings = KeymapSettings()
     @State private var status = "正在讀取 Karabiner 設定…"
     @State private var errorMessage: String?
@@ -127,7 +150,7 @@ struct ContentView: View {
                         .foregroundStyle(.tint)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Beauty-R1 按鍵設定").font(.largeTitle.bold())
-                        Text("選擇功能、檢查規則，然後套用到 Karabiner。")
+                        Text("設定五鍵短按、測試遙控器，並選擇目標 App。")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -163,15 +186,32 @@ struct ContentView: View {
                     symbol: "arrow.down",
                     mapping: $settings.longDown
                 )
-                MappingRow(
-                    title: "所有短按",
-                    detail: "上、下、左、右、中央愛心都送出同一個 button1 事件。",
-                    symbol: "heart.fill",
-                    mapping: $settings.shortPress
-                )
-
-                Label("這五個短按無法分別指定功能；介面會一起修改。", systemImage: "info.circle")
-                    .font(.callout)
+                Text("長按規則需由 Karabiner 執行；五鍵短按對映需先退出 Karabiner。")
+                    .font(.caption).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("五鍵短按對映").font(.headline)
+                    Text("按右側欄位，再按要對映的鍵盤按鍵。可同時按修飾鍵。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    ShortcutRow(button: .up, symbol: "arrow.up", shortcut: shortcutBinding(.up))
+                    ShortcutRow(button: .down, symbol: "arrow.down", shortcut: shortcutBinding(.down))
+                    ShortcutRow(button: .left, symbol: "arrow.left", shortcut: shortcutBinding(.left))
+                    ShortcutRow(button: .right, symbol: "arrow.right", shortcut: shortcutBinding(.right))
+                    ShortcutRow(button: .center, symbol: "heart.fill", shortcut: shortcutBinding(.center))
+                    HStack {
+                        Button(remoteMonitor.mappingEnabled ? "停止按鍵對映" : "啟用按鍵對映") {
+                            if remoteMonitor.mappingEnabled { remoteMonitor.disableMapping() }
+                            else { _ = remoteMonitor.enableMapping() }
+                        }
+                        Text("對映只在選定的前景 App 生效。此 App 必須保持執行。")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    if !AXIsProcessTrusted() {
+                        Link("開啟輔助使用設定", destination: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+                            .font(.caption)
+                    }
+                }
+                .padding(16)
+                .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 16))
 
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
@@ -192,25 +232,29 @@ struct ContentView: View {
                             .font(.caption)
                     }
                     HStack(alignment: .center, spacing: 18) {
-                        RemoteTestDiagram(input: remoteMonitor.isRunning ? remoteMonitor.lastInput : nil)
+                        RemoteTestDiagram(
+                        event: remoteMonitor.isRunning ? remoteMonitor.buttonEvent : nil
+                        )
                         VStack(alignment: .leading, spacing: 9) {
-                            if let input = remoteMonitor.lastInput, remoteMonitor.isRunning {
-                                Label("收到：\(input.title)", systemImage: "checkmark.circle.fill")
+                            if let button = remoteMonitor.lastButton, remoteMonitor.isRunning {
+                                Label("收到：\(button.title)", systemImage: "checkmark.circle.fill")
                                     .font(.body.weight(.semibold))
                                     .foregroundStyle(.cyan)
-                                Text("目前選擇：\(input.mapping(in: settings).preset.title)")
+                                Text("目前對映：\(remoteMonitor.shortcuts[button].label)")
                                     .font(.callout)
-                                Text("此處顯示功能預覽；套用設定後才會生效。")
+                                Text(remoteMonitor.mappingEnabled ? "已啟用；切換到目標 App 後生效。" : "目前只測試圖示，尚未送出鍵盤事件。")
                                     .font(.caption).foregroundStyle(.secondary)
                             } else {
-                                Text("按鍵後，對應圖示會亮起。")
+                                Text("按鍵後，對應圖示會亮起約一秒。")
                                     .font(.callout.weight(.medium))
-                                Text("短按無法區分是哪一鍵，因此五個圖示會一起亮起。")
+                        Text("五個短按會分別辨識，只有對應圖示亮起。")
                                     .font(.caption).foregroundStyle(.secondary)
                             }
-                            Text("已收到 \(remoteMonitor.eventCount) 次事件")
+                    Text("已辨識 \(remoteMonitor.buttonCount) 次短按")
                                 .font(.caption.monospacedDigit())
-                            Text("長按可能重複計數。")
+                            Text(RemoteButton.allCases.map { "\($0.title) \(remoteMonitor.buttonCounts[$0, default: 0])" }.joined(separator: " · "))
+                                .font(.caption.monospacedDigit())
+                            Text("同一鍵的連續重複訊號會合併。")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -230,7 +274,7 @@ struct ContentView: View {
                 Divider()
 
                 HStack(spacing: 12) {
-                    Button("套用設定") { apply() }
+                    Button("套用 Karabiner 長按規則") { apply() }
                         .buttonStyle(.borderedProminent)
                     Button("重新讀取") { reload() }
                     Button("還原上次備份") { showRestoreConfirmation = true }
@@ -247,8 +291,11 @@ struct ContentView: View {
         }
         .frame(width: 780)
         .frame(minHeight: 710)
-        .onAppear(perform: reload)
-        .onDisappear { remoteMonitor.stop() }
+        .onAppear {
+            reload()
+            if !remoteMonitor.isRunning { remoteMonitor.start() }
+        }
+        .onChange(of: settings) { newSettings in remoteMonitor.configureTarget(newSettings) }
         .alert("設定失敗", isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
@@ -263,6 +310,13 @@ struct ContentView: View {
         } message: {
             Text("這會還原整份 Karabiner 設定檔。程式會先備份目前版本。")
         }
+    }
+
+    private func shortcutBinding(_ button: RemoteButton) -> Binding<KeyboardShortcut> {
+        Binding(
+            get: { remoteMonitor.shortcuts[button] },
+            set: { remoteMonitor.setShortcut($0, for: button) }
+        )
     }
 
     private func reload() {
