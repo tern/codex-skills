@@ -3,6 +3,11 @@ import IOKit.hid
 import AppKit
 import BeautyR1Core
 
+struct RemoteButtonEvent: Equatable {
+ let button: RemoteButton
+ let sequence: Int
+}
+
 final class RemoteMonitor: ObservableObject {
     private static let systemDefinedEvent = CGEventType(rawValue: 14)!
     @Published private(set) var isRunning = false
@@ -13,6 +18,42 @@ final class RemoteMonitor: ObservableObject {
     @Published private(set) var status = "按「開始測試」後，按 Beauty-R1 的實體按鍵。"
     @Published private(set) var lastInput: RemoteInput?
     @Published private(set) var eventCount = 0
+ @Published private(set) var lastButton: RemoteButton?
+ @Published private(set) var buttonCount = 0
+ @Published private(set) var buttonEvent: RemoteButtonEvent?
+ @Published private(set) var buttonCounts: [RemoteButton: Int] = [:]
+ @Published private(set) var shortcuts = KeyboardShortcuts.load()
+ @Published private(set) var mappingEnabled = false
+ private var gestureDecoder = RemoteGestureDecoder()
+ private var lastGestureTime = 0.0
+ private var lastGestureButton: RemoteButton?
+ private var targetBundles: Set<String> = ["com.mitchellh.ghostty"]
+
+ func configureTarget(_ settings: KeymapSettings) {
+  targetBundles = Set(settings.targetApps == .custom ? [settings.bundleID] : settings.targetApps.bundleIDs)
+ }
+
+ func setShortcut(_ shortcut: KeyboardShortcut, for button: RemoteButton) {
+  shortcuts[button] = shortcut
+  shortcuts.save()
+ }
+
+ func enableMapping() -> Bool {
+  guard AXIsProcessTrusted() else {
+   status = "請在系統設定授權輔助使用，再啟用按鍵對映。"
+   return false
+  }
+  if !isRunning { start() }
+  guard isRunning, !usesVirtualDevice, !usesSystemEvents else {
+   status = "Karabiner 仍接管 Beauty-R1；請先退出 Karabiner。"
+   return false
+  }
+  mappingEnabled = true
+  status = "五鍵對映已啟用；請切換到目標 App 使用。"
+  return true
+ }
+
+ func disableMapping() { mappingEnabled = false }
 
     private var manager: IOHIDManager?
     private var eventTap: CFMachPort?
@@ -25,8 +66,16 @@ final class RemoteMonitor: ObservableObject {
         usesVirtualDevice = false
         lastInput = nil
         eventCount = 0
+ lastButton = nil
+ buttonCount = 0
+ buttonEvent = nil
+ buttonCounts = [:]
+ gestureDecoder = RemoteGestureDecoder()
+ lastGestureTime = 0
+ lastGestureButton = nil
         // Karabiner can open the physical remote without delivering its input values here.
-        if startVirtualDevices() { return }
+        // Prefer the physical HID device so the directional motion accompanying
+        // a short press remains available for per-button identification.
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
         let matching: [String: Int] = [
             kIOHIDVendorIDKey as String: 1452,
@@ -47,7 +96,7 @@ final class RemoteMonitor: ObservableObject {
             Unmanaged<RemoteMonitor>.fromOpaque(context).takeUnretainedValue().receive(value)
         }, context)
         IOHIDManagerScheduleWithRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
-        let result = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
+  let result = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeSeizeDevice))
         guard result == kIOReturnSuccess else {
             IOHIDManagerUnscheduleFromRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
             if result == kIOReturnExclusiveAccess || result == kIOReturnNotPermitted {
@@ -85,6 +134,7 @@ final class RemoteMonitor: ObservableObject {
         eventTap = nil
         eventTapSource = nil
         isRunning = false
+ mappingEnabled = false
         isConnected = false
         needsInputMonitoring = false
         usesSystemEvents = false
@@ -170,8 +220,7 @@ final class RemoteMonitor: ObservableObject {
         }
         let input = RemoteInput(systemEventType: type.rawValue, data1: data1)
         guard let input else { return }
-        lastInput = input
-        eventCount += 1
+        record(input)
         status = "macOS 已收到事件。系統事件模式可能也會收到其他滑鼠的左鍵。"
     }
 
@@ -186,14 +235,39 @@ final class RemoteMonitor: ObservableObject {
 
     private func receive(_ value: IOHIDValue) {
         let element = IOHIDValueGetElement(value)
+        if !usesVirtualDevice,
+           let button = gestureDecoder.receive(
+            usagePage: Int(IOHIDElementGetUsagePage(element)),
+            usage: Int(IOHIDElementGetUsage(element)),
+            value: IOHIDValueGetIntegerValue(value)
+           ) {
+            let now = ProcessInfo.processInfo.systemUptime
+            let minimumInterval = button == lastGestureButton ? 1.1 : 0.15
+            guard now - lastGestureTime >= minimumInterval else { return }
+            lastGestureTime = now
+            lastGestureButton = button
+            lastButton = button
+            buttonCount += 1
+            buttonEvent = RemoteButtonEvent(button: button, sequence: buttonCount)
+            buttonCounts[button, default: 0] += 1
+            status = "已辨識短按：\(button.title)"
+            if mappingEnabled, let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+               targetBundles.contains(front) {
+                shortcuts[button].post()
+            }
+        }
         guard let input = RemoteInput(
             usagePage: IOHIDElementGetUsagePage(element),
             usage: IOHIDElementGetUsage(element),
             value: IOHIDValueGetIntegerValue(value)
         ) else { return }
+        record(input)
+        status = usesVirtualDevice ? "已收到 Karabiner 虛擬裝置的事件。" : "已收到按鍵事件。"
+    }
+
+    private func record(_ input: RemoteInput) {
         lastInput = input
         eventCount += 1
-        status = usesVirtualDevice ? "已收到 Karabiner 虛擬裝置的事件。" : "已收到按鍵事件。"
     }
 
     deinit {
