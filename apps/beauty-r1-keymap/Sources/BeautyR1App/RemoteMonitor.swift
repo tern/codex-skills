@@ -25,6 +25,8 @@ final class RemoteMonitor: ObservableObject {
         usesVirtualDevice = false
         lastInput = nil
         eventCount = 0
+        // Karabiner can open the physical remote without delivering its input values here.
+        if startVirtualDevices() { return }
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
         let matching: [String: Int] = [
             kIOHIDVendorIDKey as String: 1452,
@@ -48,11 +50,15 @@ final class RemoteMonitor: ObservableObject {
         let result = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
         guard result == kIOReturnSuccess else {
             IOHIDManagerUnscheduleFromRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
+            if result == kIOReturnExclusiveAccess || result == kIOReturnNotPermitted {
+                if startVirtualDevices() { return }
+            }
             if result == kIOReturnExclusiveAccess {
-                if !startVirtualDevices() { startSystemEvents() }
+                startSystemEvents()
                 return
             }
             needsInputMonitoring = result == kIOReturnNotPermitted
+                && IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) != kIOHIDAccessTypeGranted
             status = needsInputMonitoring
                 ? "macOS 尚未允許此 App 監聽輸入。請在系統設定開啟權限，重新啟動 App，再按「開始測試」。"
                 : "無法啟動裝置監聽（錯誤碼 \(result)）。"
@@ -102,6 +108,11 @@ final class RemoteMonitor: ObservableObject {
         }, context)
         IOHIDManagerScheduleWithRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
         guard IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone)) == kIOReturnSuccess else {
+            IOHIDManagerUnscheduleFromRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
+            return false
+        }
+        guard !((IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice>) ?? []).isEmpty else {
+            IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone))
             IOHIDManagerUnscheduleFromRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
             return false
         }
